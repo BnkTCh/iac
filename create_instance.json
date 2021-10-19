@@ -1,0 +1,128 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Template to Create an EC2 instance in a VPC",
+    "Parameters": {
+        "ImageId": {
+            "Type": "String",
+            "Description": "Linux 2 AMI",
+            "Default": "ami-02e136e904f3da870"
+        },
+        "VpcId": {
+            "Type": "String",
+            "Description": "VPC id",
+            "Default": "vpc-05a7af619d5e5b985"
+        },
+        "SubnetId": {
+            "Type": "String",
+            "Description": "Subnet in which to launch an EC2",
+            "Default": "subnet-096aab767ed3c3e03"
+        },
+        "AvailabilityZone": {
+            "Type": "String",
+            "Description": "Availability Zone into which instance will launch",
+            "Default": "us-east-1a"
+        },
+        "InstanceType": {
+            "Type": "String",
+            "Description": "Choosing  t2 micro because it is free",
+            "Default": "t2.micro"
+        },
+        "KeyName": {
+            "Description": "SSH Keypair to login to the instance",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Default": "ebs-demo"
+        }
+    },
+    "Resources": {
+        "DemoInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {
+                    "Ref": "ImageId"
+                },
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "DemoSecurityGroup"
+                    }
+                ],
+                "SubnetId": {
+                    "Ref": "SubnetId"
+                },
+                "UserData": {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [ "", [
+                            "#!/bin/bash -xe\n",
+
+                            "# System Updates\n",
+                            "yum -y update\n",
+                            "yum -y upgrade\n",
+                  
+                            "yum -y install httpd wget\n",
+                            "systemctl enable httpd\n",
+                            "systemctl start httpd\n",
+                  
+                            "# Install Wordpress\n",
+                            "wget https://cl-sharedmedia.s3.amazonaws.com/genericcatpicwebsite/index.html -P /var/www/html\n",
+                            "wget https://cl-sharedmedia.s3.amazonaws.com/genericcatpicwebsite/milky.jpeg -P /var/www/html\n",
+                            "wget https://cl-sharedmedia.s3.amazonaws.com/genericcatpicwebsite/nori.jpeg -P /var/www/html\n",
+                            "wget https://cl-sharedmedia.s3.amazonaws.com/genericcatpicwebsite/sushi.jpeg -P /var/www/html\n",
+                            "cd /var/www/html\n",
+                  
+                            "# permissions\n",
+                            "usermod -a -G apache ec2-user\n",
+                            "chown -R ec2-user:apache /var/www\n",
+                            "chmod 2775 /var/www\n",
+                            "find /var/www -type d -exec chmod 2775 {} \n",
+                            "find /var/www -type f -exec chmod 0664 {} \n" ] ]
+                    }
+                }
+            }
+        },
+        "DemoSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+                "GroupDescription": "SG to allow SSH access via port 22",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "SSH-SG"
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "DemoInstanceId": {
+            "Description": "Instance Id",
+            "Value": {
+                "Ref": "DemoInstance"
+            }
+        }
+    }
+}
